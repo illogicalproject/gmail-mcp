@@ -85,6 +85,31 @@ class GmailService:
             userId="me", body={"raw": self._encode(msg)}
         ).execute()
 
+    def reply_to_thread(
+        self,
+        thread_id: str,
+        message_id: str,
+        to: str,
+        subject: str,
+        body: str,
+        cc: str = "",
+        bcc: str = "",
+    ) -> Dict[str, Any]:
+        msg = MIMEText(body, "plain")
+        msg["to"] = to
+        msg["subject"] = subject
+        msg["In-Reply-To"] = message_id
+        msg["References"] = message_id
+        if cc:
+            msg["cc"] = cc
+        if bcc:
+            msg["bcc"] = bcc
+
+        return self.service.users().messages().send(
+            userId="me",
+            body={"raw": self._encode(msg), "threadId": thread_id},
+        ).execute()
+
     def create_draft(
         self,
         to: str,
@@ -204,14 +229,12 @@ class GmailService:
 
         parts = payload.get("parts", [])
 
-        # Prefer text/plain parts
         for part in parts:
             if part.get("mimeType") == "text/plain":
                 result = self._extract_body(part)
                 if result:
                     return result
 
-        # Fallback: any part that returns content
         for part in parts:
             result = self._extract_body(part)
             if result:

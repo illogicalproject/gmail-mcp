@@ -107,7 +107,7 @@ class CalendarService:
 
         return {
             "id": event.get("id", ""),
-            "summary": event.get("summary", "(sin título)"),
+            "summary": event.get("summary", "(no title)"),
             "description": event.get("description", ""),
             "location": event.get("location", ""),
             "start": start.get("dateTime", start.get("date", "")),

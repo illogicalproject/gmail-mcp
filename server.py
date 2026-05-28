@@ -174,7 +174,7 @@ async def list_tools() -> list[types.Tool]:
         ),
         types.Tool(
             name="gmail_send",
-            description="Send an email from a specific Gmail account.",
+            description="Send a new email from a specific Gmail account.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -192,6 +192,39 @@ async def list_tools() -> list[types.Tool]:
                     "bcc": {"type": "string", "description": "BCC recipients, comma-separated"},
                 },
                 "required": ["account", "to", "subject", "body"],
+            },
+        ),
+        types.Tool(
+            name="gmail_reply",
+            description="Reply to an existing Gmail thread, keeping the conversation intact.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {
+                        "type": "string",
+                        "description": "Account to send from",
+                    },
+                    "thread_id": {
+                        "type": "string",
+                        "description": "Gmail thread ID to reply into",
+                    },
+                    "message_id": {
+                        "type": "string",
+                        "description": "The message ID being replied to (for In-Reply-To header)",
+                    },
+                    "to": {
+                        "type": "string",
+                        "description": "Recipient(s), comma-separated",
+                    },
+                    "subject": {
+                        "type": "string",
+                        "description": "Subject (typically Re: original subject)",
+                    },
+                    "body": {"type": "string", "description": "Reply body (plain text)"},
+                    "cc": {"type": "string", "description": "CC recipients, comma-separated"},
+                    "bcc": {"type": "string", "description": "BCC recipients, comma-separated"},
+                },
+                "required": ["account", "thread_id", "message_id", "to", "subject", "body"],
             },
         ),
         types.Tool(
@@ -442,6 +475,24 @@ async def call_tool(name: str, arguments: dict | None) -> list[types.TextContent
         elif name == "gmail_send":
             svc = _get_service(args["account"])
             result = svc.send_message(
+                to=args["to"],
+                subject=args["subject"],
+                body=args["body"],
+                cc=args.get("cc", ""),
+                bcc=args.get("bcc", ""),
+            )
+            return _fmt({
+                "status": "sent",
+                "message_id": result.get("id"),
+                "thread_id": result.get("threadId"),
+            })
+
+        # ---- gmail_reply --------------------------------------------------
+        elif name == "gmail_reply":
+            svc = _get_service(args["account"])
+            result = svc.reply_to_thread(
+                thread_id=args["thread_id"],
+                message_id=args["message_id"],
                 to=args["to"],
                 subject=args["subject"],
                 body=args["body"],

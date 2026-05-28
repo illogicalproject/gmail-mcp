@@ -8,6 +8,7 @@ A local [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server t
 - **Unified email search** — search across all accounts simultaneously with Gmail's full query syntax
 - **Full read access** — read individual messages and entire threads
 - **Send & draft** — compose and send emails, or save drafts, from any account
+- **Threaded replies** — reply directly into existing Gmail threads with proper headers
 - **Label management** — list labels, mark as read/unread, star messages
 - **Google Calendar** — list calendars, browse upcoming events, search by keyword
 
@@ -23,7 +24,7 @@ A local [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server t
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/DiegoMaldonadoRosas/gmail-mcp.git
+git clone https://github.com/illogicalproject/gmail-mcp.git
 cd gmail-mcp
 ```
 
@@ -115,7 +116,8 @@ All tools will appear automatically.
 | `gmail_search` | Search emails using Gmail query syntax (one or all accounts) |
 | `gmail_read_message` | Read the full content of a message |
 | `gmail_read_thread` | Read all messages in a thread |
-| `gmail_send` | Send an email from a specific account |
+| `gmail_send` | Send a new email from a specific account |
+| `gmail_reply` | Reply to an existing thread, keeping the conversation intact |
 | `gmail_create_draft` | Save an email as a draft |
 | `gmail_list_drafts` | List drafts in an account |
 | `gmail_list_labels` | List all labels and folders |
@@ -139,6 +141,7 @@ Once connected, you can ask Claude things like:
 - *"Do I have any unread emails in my work account?"*
 - *"Search for invoices received in the last month across all my accounts"*
 - *"Read the last email from John in my personal account"*
+- *"Reply to the thread with Sarah about the project timeline"*
 - *"Draft a reply to the budget email in my work account"*
 - *"Mark all emails from newsletter@example.com as read"*
 
@@ -163,21 +166,3 @@ Once connected, you can ask Claude things like:
 - To revoke access at any time, visit [myaccount.google.com/permissions](https://myaccount.google.com/permissions)
 
 ## Project Structure
-
-```
-gmail-mcp/
-├── server.py           # MCP server — exposes 15 tools to Claude
-├── auth.py             # OAuth2 token manager (per account)
-├── gmail.py            # Gmail API wrapper
-├── gcalendar.py        # Google Calendar API wrapper
-├── config.py           # Configuration loader
-├── setup_auth.py       # One-time authentication script
-├── setup.sh            # First-time installer
-├── requirements.txt    # Python dependencies
-├── config.json.example # Account configuration template
-└── .gitignore          # Excludes credentials and config.json
-```
-
-## License
-
-MIT
