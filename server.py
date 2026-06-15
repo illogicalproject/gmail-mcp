@@ -1,8 +1,8 @@
 """
-Gmail Multi-Account MCP Server
--------------------------------
-Exposes Gmail operations for multiple Google accounts via the
-Model Context Protocol (MCP) stdio transport.
+Google Workspace Multi-Account MCP Server
+-----------------------------------------
+Exposes Gmail, Calendar, Drive, Docs, and Sheets operations for multiple
+Google accounts via the Model Context Protocol (MCP) stdio transport.
 
 Start with:  python server.py
 Configure accounts in config.json and authenticate with: python setup_auth.py
@@ -91,7 +91,7 @@ def _fmt(data: Any) -> list[types.TextContent]:
 # MCP Server
 # ---------------------------------------------------------------------------
 
-server = Server("gmail-multi-account")
+server = Server("google-workspace-multi")
 
 
 @server.list_tools()
