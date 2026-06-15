@@ -21,7 +21,10 @@ from mcp.server.stdio import stdio_server
 from auth import AuthManager
 from config import get_accounts, get_client_secret_path, get_credentials_dir, load_config
 from gcalendar import CalendarService
+from gdocs import DocsService
+from gdrive import DriveService
 from gmail import GmailService
+from gsheets import SheetsService
 
 # ---------------------------------------------------------------------------
 # Bootstrap: load config and auth manager at startup
@@ -64,6 +67,18 @@ def _get_service(account_name: str) -> GmailService:
 
 def _get_calendar(account_name: str) -> CalendarService:
     return CalendarService(_get_creds(account_name), account_name)
+
+
+def _get_drive(account_name: str) -> DriveService:
+    return DriveService(_get_creds(account_name), account_name)
+
+
+def _get_docs(account_name: str) -> DocsService:
+    return DocsService(_get_creds(account_name), account_name)
+
+
+def _get_sheets(account_name: str) -> SheetsService:
+    return SheetsService(_get_creds(account_name), account_name)
 
 
 def _fmt(data: Any) -> list[types.TextContent]:
@@ -402,6 +417,319 @@ async def list_tools() -> list[types.Tool]:
                 "required": ["account", "event_id"],
             },
         ),
+        # ── Drive tools ─────────────────────────────────────────────────────
+        types.Tool(
+            name="drive_list_files",
+            description=(
+                "List or search files in Google Drive for an account. "
+                "Use Drive query syntax in 'query', e.g. \"name contains 'budget'\", "
+                "\"mimeType='application/vnd.google-apps.spreadsheet'\", "
+                "\"'<folderId>' in parents\", \"modifiedTime > '2026-01-01T00:00:00'\"."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "query": {"type": "string", "description": "Drive query (q) string. Omit to list recent files."},
+                    "max_results": {"type": "integer", "description": "Max files (default 20, max 100)", "default": 20},
+                    "order_by": {"type": "string", "description": "Sort order (default 'modifiedTime desc')", "default": "modifiedTime desc"},
+                },
+                "required": ["account"],
+            },
+        ),
+        types.Tool(
+            name="drive_get_metadata",
+            description="Get metadata (name, type, owners, parents, link) for a Drive file by ID.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "file_id": {"type": "string", "description": "Drive file ID"},
+                },
+                "required": ["account", "file_id"],
+            },
+        ),
+        types.Tool(
+            name="drive_read_file",
+            description=(
+                "Read a Drive file's text content. Google Docs are exported as plain text, "
+                "Google Sheets as CSV; other text files are downloaded directly. Binary files return an error."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "file_id": {"type": "string", "description": "Drive file ID"},
+                    "max_chars": {"type": "integer", "description": "Max characters to return (default 100000)", "default": 100000},
+                },
+                "required": ["account", "file_id"],
+            },
+        ),
+        types.Tool(
+            name="drive_create_folder",
+            description="Create a new folder in Drive, optionally inside a parent folder.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "name": {"type": "string", "description": "Folder name"},
+                    "parent_id": {"type": "string", "description": "Parent folder ID (optional; defaults to My Drive root)"},
+                },
+                "required": ["account", "name"],
+            },
+        ),
+        types.Tool(
+            name="drive_create_text_file",
+            description="Create a new text-based file in Drive with the given content (default mime text/plain).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "name": {"type": "string", "description": "File name (include extension, e.g. notes.md)"},
+                    "content": {"type": "string", "description": "File text content"},
+                    "mime_type": {"type": "string", "description": "MIME type (default 'text/plain')", "default": "text/plain"},
+                    "parent_id": {"type": "string", "description": "Parent folder ID (optional)"},
+                },
+                "required": ["account", "name", "content"],
+            },
+        ),
+        types.Tool(
+            name="drive_update_text_file",
+            description="Overwrite the content of an existing text-based Drive file.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "file_id": {"type": "string", "description": "Drive file ID"},
+                    "content": {"type": "string", "description": "New text content (replaces existing)"},
+                    "mime_type": {"type": "string", "description": "MIME type (default 'text/plain')", "default": "text/plain"},
+                },
+                "required": ["account", "file_id", "content"],
+            },
+        ),
+        types.Tool(
+            name="drive_rename_file",
+            description="Rename a Drive file or folder.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "file_id": {"type": "string", "description": "Drive file ID"},
+                    "new_name": {"type": "string", "description": "New name"},
+                },
+                "required": ["account", "file_id", "new_name"],
+            },
+        ),
+        types.Tool(
+            name="drive_move_file",
+            description="Move a Drive file or folder into a different parent folder.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "file_id": {"type": "string", "description": "Drive file ID"},
+                    "new_parent_id": {"type": "string", "description": "Destination folder ID"},
+                },
+                "required": ["account", "file_id", "new_parent_id"],
+            },
+        ),
+        types.Tool(
+            name="drive_copy_file",
+            description="Make a copy of a Drive file, optionally with a new name.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "file_id": {"type": "string", "description": "Drive file ID to copy"},
+                    "new_name": {"type": "string", "description": "Name for the copy (optional)"},
+                },
+                "required": ["account", "file_id"],
+            },
+        ),
+        types.Tool(
+            name="drive_trash_file",
+            description="Move a Drive file or folder to the Trash.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "file_id": {"type": "string", "description": "Drive file ID"},
+                },
+                "required": ["account", "file_id"],
+            },
+        ),
+        types.Tool(
+            name="drive_share_file",
+            description="Grant a person access to a Drive file by email. Role is one of: reader, commenter, writer.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "file_id": {"type": "string", "description": "Drive file ID"},
+                    "email": {"type": "string", "description": "Email address to share with"},
+                    "role": {"type": "string", "description": "reader | commenter | writer (default reader)", "default": "reader"},
+                    "notify": {"type": "boolean", "description": "Send notification email (default false)", "default": False},
+                },
+                "required": ["account", "file_id", "email"],
+            },
+        ),
+        # ── Docs tools ──────────────────────────────────────────────────────
+        types.Tool(
+            name="docs_create",
+            description="Create a new Google Doc with a title and optional initial plain-text body.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "title": {"type": "string", "description": "Document title"},
+                    "text": {"type": "string", "description": "Initial body text (plain text, optional)"},
+                },
+                "required": ["account", "title"],
+            },
+        ),
+        types.Tool(
+            name="docs_read",
+            description="Read the full plain-text content of a Google Doc by its document ID.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "document_id": {"type": "string", "description": "Google Doc document ID"},
+                },
+                "required": ["account", "document_id"],
+            },
+        ),
+        types.Tool(
+            name="docs_append_text",
+            description="Append plain text to the end of a Google Doc.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "document_id": {"type": "string", "description": "Google Doc document ID"},
+                    "text": {"type": "string", "description": "Text to append"},
+                },
+                "required": ["account", "document_id", "text"],
+            },
+        ),
+        types.Tool(
+            name="docs_replace_text",
+            description="Find and replace all occurrences of a string in a Google Doc.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "document_id": {"type": "string", "description": "Google Doc document ID"},
+                    "find": {"type": "string", "description": "Text to find"},
+                    "replace": {"type": "string", "description": "Replacement text"},
+                    "match_case": {"type": "boolean", "description": "Case-sensitive match (default true)", "default": True},
+                },
+                "required": ["account", "document_id", "find", "replace"],
+            },
+        ),
+        # ── Sheets tools ────────────────────────────────────────────────────
+        types.Tool(
+            name="sheets_create",
+            description="Create a new Google Spreadsheet with the given title.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "title": {"type": "string", "description": "Spreadsheet title"},
+                },
+                "required": ["account", "title"],
+            },
+        ),
+        types.Tool(
+            name="sheets_get_info",
+            description="Get a spreadsheet's title, URL, and the list of its sheets/tabs (with dimensions).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "spreadsheet_id": {"type": "string", "description": "Spreadsheet ID"},
+                },
+                "required": ["account", "spreadsheet_id"],
+            },
+        ),
+        types.Tool(
+            name="sheets_add_sheet",
+            description="Add a new sheet/tab to an existing spreadsheet.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "spreadsheet_id": {"type": "string", "description": "Spreadsheet ID"},
+                    "title": {"type": "string", "description": "New sheet/tab title"},
+                },
+                "required": ["account", "spreadsheet_id", "title"],
+            },
+        ),
+        types.Tool(
+            name="sheets_read_range",
+            description="Read values from an A1 range, e.g. 'Sheet1!A1:D20'.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "spreadsheet_id": {"type": "string", "description": "Spreadsheet ID"},
+                    "range": {"type": "string", "description": "A1 range, e.g. 'Sheet1!A1:D20'"},
+                },
+                "required": ["account", "spreadsheet_id", "range"],
+            },
+        ),
+        types.Tool(
+            name="sheets_write_range",
+            description=(
+                "Write a 2D array of values to an A1 range (overwrites existing cells). "
+                "'values' is an array of rows, each an array of cell values."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "spreadsheet_id": {"type": "string", "description": "Spreadsheet ID"},
+                    "range": {"type": "string", "description": "A1 range, e.g. 'Sheet1!A1'"},
+                    "values": {
+                        "type": "array",
+                        "items": {"type": "array", "items": {}},
+                        "description": "2D array of rows of cell values",
+                    },
+                },
+                "required": ["account", "spreadsheet_id", "range", "values"],
+            },
+        ),
+        types.Tool(
+            name="sheets_append_rows",
+            description="Append rows after the last row of data in the given range/table.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "spreadsheet_id": {"type": "string", "description": "Spreadsheet ID"},
+                    "range": {"type": "string", "description": "A1 range/table, e.g. 'Sheet1!A1'"},
+                    "values": {
+                        "type": "array",
+                        "items": {"type": "array", "items": {}},
+                        "description": "2D array of rows to append",
+                    },
+                },
+                "required": ["account", "spreadsheet_id", "range", "values"],
+            },
+        ),
+        types.Tool(
+            name="sheets_clear_range",
+            description="Clear all values from an A1 range (formatting is preserved).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "spreadsheet_id": {"type": "string", "description": "Spreadsheet ID"},
+                    "range": {"type": "string", "description": "A1 range to clear"},
+                },
+                "required": ["account", "spreadsheet_id", "range"],
+            },
+        ),
     ]
 
 
@@ -577,6 +905,120 @@ async def call_tool(name: str, arguments: dict | None) -> list[types.TextContent
                 event_id=args["event_id"],
                 calendar_id=args.get("calendar_id", "primary"),
             ))
+
+        # ---- Drive --------------------------------------------------------
+        elif name == "drive_list_files":
+            svc = _get_drive(args["account"])
+            return _fmt(svc.list_files(
+                query=args.get("query"),
+                max_results=int(args.get("max_results", 20)),
+                order_by=args.get("order_by", "modifiedTime desc"),
+            ))
+
+        elif name == "drive_get_metadata":
+            svc = _get_drive(args["account"])
+            return _fmt(svc.get_metadata(args["file_id"]))
+
+        elif name == "drive_read_file":
+            svc = _get_drive(args["account"])
+            return _fmt(svc.read_file(args["file_id"], int(args.get("max_chars", 100_000))))
+
+        elif name == "drive_create_folder":
+            svc = _get_drive(args["account"])
+            return _fmt(svc.create_folder(args["name"], args.get("parent_id")))
+
+        elif name == "drive_create_text_file":
+            svc = _get_drive(args["account"])
+            return _fmt(svc.create_text_file(
+                name=args["name"],
+                content=args["content"],
+                mime_type=args.get("mime_type", "text/plain"),
+                parent_id=args.get("parent_id"),
+            ))
+
+        elif name == "drive_update_text_file":
+            svc = _get_drive(args["account"])
+            return _fmt(svc.update_text_file(
+                file_id=args["file_id"],
+                content=args["content"],
+                mime_type=args.get("mime_type", "text/plain"),
+            ))
+
+        elif name == "drive_rename_file":
+            svc = _get_drive(args["account"])
+            return _fmt(svc.rename_file(args["file_id"], args["new_name"]))
+
+        elif name == "drive_move_file":
+            svc = _get_drive(args["account"])
+            return _fmt(svc.move_file(args["file_id"], args["new_parent_id"]))
+
+        elif name == "drive_copy_file":
+            svc = _get_drive(args["account"])
+            return _fmt(svc.copy_file(args["file_id"], args.get("new_name")))
+
+        elif name == "drive_trash_file":
+            svc = _get_drive(args["account"])
+            return _fmt(svc.trash_file(args["file_id"]))
+
+        elif name == "drive_share_file":
+            svc = _get_drive(args["account"])
+            return _fmt(svc.share_file(
+                file_id=args["file_id"],
+                email=args["email"],
+                role=args.get("role", "reader"),
+                notify=bool(args.get("notify", False)),
+            ))
+
+        # ---- Docs ---------------------------------------------------------
+        elif name == "docs_create":
+            svc = _get_docs(args["account"])
+            return _fmt(svc.create_document(args["title"], args.get("text")))
+
+        elif name == "docs_read":
+            svc = _get_docs(args["account"])
+            return _fmt(svc.read_document(args["document_id"]))
+
+        elif name == "docs_append_text":
+            svc = _get_docs(args["account"])
+            return _fmt(svc.append_text(args["document_id"], args["text"]))
+
+        elif name == "docs_replace_text":
+            svc = _get_docs(args["account"])
+            return _fmt(svc.replace_text(
+                document_id=args["document_id"],
+                find=args["find"],
+                replace=args["replace"],
+                match_case=bool(args.get("match_case", True)),
+            ))
+
+        # ---- Sheets -------------------------------------------------------
+        elif name == "sheets_create":
+            svc = _get_sheets(args["account"])
+            return _fmt(svc.create_spreadsheet(args["title"]))
+
+        elif name == "sheets_get_info":
+            svc = _get_sheets(args["account"])
+            return _fmt(svc.get_info(args["spreadsheet_id"]))
+
+        elif name == "sheets_add_sheet":
+            svc = _get_sheets(args["account"])
+            return _fmt(svc.add_sheet(args["spreadsheet_id"], args["title"]))
+
+        elif name == "sheets_read_range":
+            svc = _get_sheets(args["account"])
+            return _fmt(svc.read_range(args["spreadsheet_id"], args["range"]))
+
+        elif name == "sheets_write_range":
+            svc = _get_sheets(args["account"])
+            return _fmt(svc.write_range(args["spreadsheet_id"], args["range"], args["values"]))
+
+        elif name == "sheets_append_rows":
+            svc = _get_sheets(args["account"])
+            return _fmt(svc.append_rows(args["spreadsheet_id"], args["range"], args["values"]))
+
+        elif name == "sheets_clear_range":
+            svc = _get_sheets(args["account"])
+            return _fmt(svc.clear_range(args["spreadsheet_id"], args["range"]))
 
         else:
             return _fmt(f"Unknown tool: {name}")
