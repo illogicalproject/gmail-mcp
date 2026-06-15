@@ -17,9 +17,10 @@ from config import (
     get_accounts,
     get_client_secret_path,
     get_credentials_dir,
+    get_services,
     load_config,
 )
-from auth import AuthManager
+from auth import AuthManager, build_scopes
 
 
 HELP_CLOUD_CONSOLE = """
@@ -61,9 +62,10 @@ def main() -> None:
         print(HELP_CLOUD_CONSOLE.format(path=client_secret_path))
         sys.exit(1)
 
-    auth = AuthManager(credentials_dir, client_secret_path)
+    scopes = build_scopes(get_services(config))
+    auth = AuthManager(credentials_dir, client_secret_path, scopes=scopes)
 
-    print(f"Gmail Multi-Account MCP — Authentication Setup")
+    print(f"Google Workspace Multi-Account MCP — Authentication Setup")
     print(f"{'─' * 50}")
     print(f"Found {len(accounts)} account(s) in config.json.\n")
 

@@ -73,9 +73,12 @@ Edit `config.json` — the keys (`personal`, `work`, …) are the names you'll u
     "personal": { "email": "you@gmail.com",     "description": "Personal account" },
     "work":     { "email": "you@company.com",   "description": "Work account" }
   },
+  "services": ["gmail", "calendar", "drive", "docs", "sheets"],
   "credentials_dir": "./credentials"
 }
 ```
+
+The optional **`services`** list controls which Google services are enabled — both the OAuth scopes requested *and* the tools exposed to Claude. Omit it to enable everything. Trim it to request fewer permissions and get a milder consent screen (see [Scopes](#scopes--permissions)). Valid entries: `gmail`, `calendar`, `drive`, `drive.file`, `docs`, `sheets`. Use `drive.file` instead of `drive` for per-file (non-restricted) Drive access.
 
 ### 5. Authenticate
 
@@ -105,7 +108,7 @@ Use the real absolute path where you cloned the repo. The key (`google-workspace
 
 ## Scopes & permissions
 
-Scopes are defined in `auth.py` (`SCOPES`). Trim this list to only what you need — fewer/lower-tier scopes mean a less alarming consent screen.
+Scopes follow the `services` list in `config.json` (see step 4) — enable only the services you need for a lower-tier, less alarming consent screen. The per-service scope definitions live in `auth.py` (`SERVICE_SCOPES`) if you want to customize further.
 
 | Service | Scope | Google tier |
 |---|---|---|

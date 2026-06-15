@@ -20,6 +20,15 @@ def get_accounts(config: Dict[str, Any]) -> Dict[str, Dict]:
     return config.get("accounts", {})
 
 
+def get_services(config: Dict[str, Any]):
+    """Return the configured list of enabled services, or None to use the default
+    (all services). E.g. ["gmail", "calendar", "drive", "docs", "sheets"]."""
+    services = config.get("services")
+    if isinstance(services, list) and services:
+        return [str(s) for s in services]
+    return None
+
+
 def get_credentials_dir(config: Dict[str, Any], base_dir: Path = DEFAULT_CONFIG_PATH.parent) -> Path:
     path = Path(config.get("credentials_dir", "./credentials"))
     if not path.is_absolute():

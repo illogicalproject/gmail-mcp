@@ -1,27 +1,57 @@
 from pathlib import Path
-from typing import List, Optional
+from typing import Iterable, List, Optional
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-# Gmail (read, send, modify, labels), Calendar (read), Drive/Docs/Sheets (read-write)
-SCOPES = [
-    "https://www.googleapis.com/auth/gmail.readonly",
-    "https://www.googleapis.com/auth/gmail.send",
-    "https://www.googleapis.com/auth/gmail.compose",
-    "https://www.googleapis.com/auth/gmail.modify",
-    "https://www.googleapis.com/auth/calendar.readonly",
-    "https://www.googleapis.com/auth/drive",
-    "https://www.googleapis.com/auth/documents",
-    "https://www.googleapis.com/auth/spreadsheets",
-]
+# Per-service OAuth scopes. Choose which services to enable via the "services"
+# list in config.json — requesting fewer / lower-tier scopes yields a milder
+# consent screen. "drive" is full read/write (a Google "restricted" scope);
+# "drive.file" limits access to files the app creates or the user opens (non-sensitive).
+SERVICE_SCOPES = {
+    "gmail": [
+        "https://www.googleapis.com/auth/gmail.readonly",
+        "https://www.googleapis.com/auth/gmail.send",
+        "https://www.googleapis.com/auth/gmail.compose",
+        "https://www.googleapis.com/auth/gmail.modify",
+    ],
+    "calendar": ["https://www.googleapis.com/auth/calendar.readonly"],
+    "drive": ["https://www.googleapis.com/auth/drive"],
+    "drive.file": ["https://www.googleapis.com/auth/drive.file"],
+    "docs": ["https://www.googleapis.com/auth/documents"],
+    "sheets": ["https://www.googleapis.com/auth/spreadsheets"],
+}
+
+DEFAULT_SERVICES = ["gmail", "calendar", "drive", "docs", "sheets"]
+
+
+def build_scopes(services: Optional[Iterable[str]] = None) -> List[str]:
+    """De-duplicated list of OAuth scope URLs for the given service names.
+    Unknown names are ignored; falsy/empty input falls back to DEFAULT_SERVICES."""
+    names = list(services) if services else DEFAULT_SERVICES
+    scopes: List[str] = []
+    for name in names:
+        for scope in SERVICE_SCOPES.get(name, []):
+            if scope not in scopes:
+                scopes.append(scope)
+    return scopes
+
+
+# Back-compat: module-level SCOPES = all default services.
+SCOPES = build_scopes(DEFAULT_SERVICES)
 
 
 class AuthManager:
-    def __init__(self, credentials_dir: Path, client_secret_path: Path):
+    def __init__(
+        self,
+        credentials_dir: Path,
+        client_secret_path: Path,
+        scopes: Optional[List[str]] = None,
+    ):
         self.credentials_dir = Path(credentials_dir)
         self.client_secret_path = Path(client_secret_path)
+        self.scopes = scopes or SCOPES
         self.tokens_dir = self.credentials_dir / "tokens"
         self.tokens_dir.mkdir(parents=True, exist_ok=True)
 
@@ -34,7 +64,7 @@ class AuthManager:
             return None
 
         try:
-            creds = Credentials.from_authorized_user_file(str(token_path), SCOPES)
+            creds = Credentials.from_authorized_user_file(str(token_path), self.scopes)
         except Exception:
             return None
 
@@ -59,7 +89,7 @@ class AuthManager:
             )
 
         flow = InstalledAppFlow.from_client_secrets_file(
-            str(self.client_secret_path), SCOPES
+            str(self.client_secret_path), self.scopes
         )
 
         # login_hint pre-fills the email field; prompt=select_account

@@ -18,8 +18,14 @@ import mcp.types as types
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 
-from auth import AuthManager
-from config import get_accounts, get_client_secret_path, get_credentials_dir, load_config
+from auth import DEFAULT_SERVICES, AuthManager, build_scopes
+from config import (
+    get_accounts,
+    get_client_secret_path,
+    get_credentials_dir,
+    get_services,
+    load_config,
+)
 from gcalendar import CalendarService
 from gdocs import DocsService
 from gdrive import DriveService
@@ -35,10 +41,24 @@ try:
     _accounts = get_accounts(_config)
     _credentials_dir = get_credentials_dir(_config)
     _client_secret_path = get_client_secret_path(_config)
-    _auth = AuthManager(_credentials_dir, _client_secret_path)
+    _services = get_services(_config) or list(DEFAULT_SERVICES)
+    _scopes = build_scopes(_services)
+    _auth = AuthManager(_credentials_dir, _client_secret_path, scopes=_scopes)
 except FileNotFoundError as exc:
     print(f"STARTUP ERROR: {exc}", file=sys.stderr)
     sys.exit(1)
+
+# Which service tool groups to expose. "drive.file" still enables the Drive tools.
+_enabled_services = set(_services)
+if "drive.file" in _enabled_services:
+    _enabled_services.add("drive")
+
+
+def _service_of(tool_name: str) -> str | None:
+    for prefix in ("gmail", "calendar", "drive", "docs", "sheets"):
+        if tool_name.startswith(prefix + "_"):
+            return prefix
+    return None
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -96,7 +116,7 @@ server = Server("google-workspace-multi")
 
 @server.list_tools()
 async def list_tools() -> list[types.Tool]:
-    return [
+    all_tools = [
         types.Tool(
             name="list_accounts",
             description=(
@@ -730,6 +750,12 @@ async def list_tools() -> list[types.Tool]:
                 "required": ["account", "spreadsheet_id", "range"],
             },
         ),
+    ]
+
+    return [
+        t
+        for t in all_tools
+        if t.name == "list_accounts" or _service_of(t.name) in _enabled_services
     ]
 
 

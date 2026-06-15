@@ -9,5 +9,6 @@
       "description": "Work account"
     }
   },
+  "services": ["gmail", "calendar", "drive", "docs", "sheets"],
   "credentials_dir": "./credentials"
 }
