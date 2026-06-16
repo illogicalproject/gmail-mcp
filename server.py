@@ -437,6 +437,96 @@ async def list_tools() -> list[types.Tool]:
                 "required": ["account", "event_id"],
             },
         ),
+        types.Tool(
+            name="calendar_create_event",
+            description=(
+                "Create a calendar event. For timed events pass RFC3339 'start'/'end' "
+                "(e.g. '2026-06-20T15:00:00-07:00') and optionally 'timezone'. "
+                "For all-day events set all_day=true and pass dates ('2026-06-20')."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "summary": {"type": "string", "description": "Event title"},
+                    "start": {"type": "string", "description": "Start time (RFC3339) or date (YYYY-MM-DD if all_day)"},
+                    "end": {"type": "string", "description": "End time (RFC3339) or date (YYYY-MM-DD if all_day)"},
+                    "all_day": {"type": "boolean", "description": "All-day event (use dates, not times)", "default": False},
+                    "description": {"type": "string", "description": "Event description/notes"},
+                    "location": {"type": "string", "description": "Event location"},
+                    "attendees": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Attendee email addresses",
+                    },
+                    "timezone": {"type": "string", "description": "IANA tz, e.g. 'America/Los_Angeles' (timed events)"},
+                    "calendar_id": {"type": "string", "description": "Calendar ID (default 'primary')", "default": "primary"},
+                    "send_updates": {"type": "string", "description": "Notify attendees: 'all' | 'externalOnly' | 'none' (default 'none')", "default": "none"},
+                    "add_meet": {"type": "boolean", "description": "Attach a Google Meet link", "default": False},
+                },
+                "required": ["account", "summary", "start", "end"],
+            },
+        ),
+        types.Tool(
+            name="calendar_update_event",
+            description=(
+                "Update fields on an existing calendar event (patch). Only the "
+                "fields you pass are changed. If you change start/end, pass both."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "event_id": {"type": "string", "description": "Event ID to update"},
+                    "summary": {"type": "string", "description": "New title"},
+                    "start": {"type": "string", "description": "New start (RFC3339, or date if all_day)"},
+                    "end": {"type": "string", "description": "New end (RFC3339, or date if all_day)"},
+                    "all_day": {"type": "boolean", "description": "Treat start/end as all-day dates", "default": False},
+                    "description": {"type": "string", "description": "New description"},
+                    "location": {"type": "string", "description": "New location"},
+                    "attendees": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Replacement attendee email list",
+                    },
+                    "timezone": {"type": "string", "description": "IANA tz for new start/end"},
+                    "calendar_id": {"type": "string", "description": "Calendar ID (default 'primary')", "default": "primary"},
+                    "send_updates": {"type": "string", "description": "'all' | 'externalOnly' | 'none' (default 'none')", "default": "none"},
+                },
+                "required": ["account", "event_id"],
+            },
+        ),
+        types.Tool(
+            name="calendar_delete_event",
+            description="Delete (cancel) a calendar event by its ID.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "event_id": {"type": "string", "description": "Event ID to delete"},
+                    "calendar_id": {"type": "string", "description": "Calendar ID (default 'primary')", "default": "primary"},
+                    "send_updates": {"type": "string", "description": "'all' | 'externalOnly' | 'none' (default 'none')", "default": "none"},
+                },
+                "required": ["account", "event_id"],
+            },
+        ),
+        types.Tool(
+            name="calendar_quick_add_event",
+            description=(
+                "Create an event from a natural-language phrase, e.g. "
+                "'Lunch with Sam tomorrow at noon'. Google parses the date/time."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "text": {"type": "string", "description": "Natural-language event description"},
+                    "calendar_id": {"type": "string", "description": "Calendar ID (default 'primary')", "default": "primary"},
+                    "send_updates": {"type": "string", "description": "'all' | 'externalOnly' | 'none' (default 'none')", "default": "none"},
+                },
+                "required": ["account", "text"],
+            },
+        ),
         # ── Drive tools ─────────────────────────────────────────────────────
         types.Tool(
             name="drive_list_files",
@@ -645,6 +735,56 @@ async def list_tools() -> list[types.Tool]:
                     "match_case": {"type": "boolean", "description": "Case-sensitive match (default true)", "default": True},
                 },
                 "required": ["account", "document_id", "find", "replace"],
+            },
+        ),
+        types.Tool(
+            name="docs_create_markdown",
+            description=(
+                "Create a new Google Doc and render Markdown into it as REAL "
+                "formatting: # headings, **bold**, *italic*, `code`, [links](url), "
+                "bullet & numbered lists, > blockquotes, and | tables |. "
+                "Prefer this over docs_create when you want formatted output."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "title": {"type": "string", "description": "Document title"},
+                    "markdown": {"type": "string", "description": "Markdown body to render"},
+                },
+                "required": ["account", "title", "markdown"],
+            },
+        ),
+        types.Tool(
+            name="docs_append_markdown",
+            description=(
+                "Append Markdown to the end of an existing Google Doc, rendered as "
+                "real formatting (headings, bold/italic, links, lists, tables)."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "document_id": {"type": "string", "description": "Google Doc document ID"},
+                    "markdown": {"type": "string", "description": "Markdown to append"},
+                },
+                "required": ["account", "document_id", "markdown"],
+            },
+        ),
+        types.Tool(
+            name="docs_replace_with_markdown",
+            description=(
+                "Clear a Google Doc's entire body and replace it with Markdown "
+                "rendered as real formatting. Use to regenerate a doc from scratch."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "document_id": {"type": "string", "description": "Google Doc document ID"},
+                    "markdown": {"type": "string", "description": "Markdown to render as the new body"},
+                },
+                "required": ["account", "document_id", "markdown"],
             },
         ),
         # ── Sheets tools ────────────────────────────────────────────────────
@@ -932,6 +1072,58 @@ async def call_tool(name: str, arguments: dict | None) -> list[types.TextContent
                 calendar_id=args.get("calendar_id", "primary"),
             ))
 
+        # ---- calendar_create_event ----------------------------------------
+        elif name == "calendar_create_event":
+            svc = _get_calendar(args["account"])
+            return _fmt(svc.create_event(
+                summary=args["summary"],
+                start=args["start"],
+                end=args["end"],
+                all_day=bool(args.get("all_day", False)),
+                description=args.get("description"),
+                location=args.get("location"),
+                attendees=args.get("attendees"),
+                timezone=args.get("timezone"),
+                calendar_id=args.get("calendar_id", "primary"),
+                send_updates=args.get("send_updates", "none"),
+                add_meet=bool(args.get("add_meet", False)),
+            ))
+
+        # ---- calendar_update_event ----------------------------------------
+        elif name == "calendar_update_event":
+            svc = _get_calendar(args["account"])
+            return _fmt(svc.update_event(
+                event_id=args["event_id"],
+                summary=args.get("summary"),
+                start=args.get("start"),
+                end=args.get("end"),
+                all_day=bool(args.get("all_day", False)),
+                description=args.get("description"),
+                location=args.get("location"),
+                attendees=args.get("attendees"),
+                timezone=args.get("timezone"),
+                calendar_id=args.get("calendar_id", "primary"),
+                send_updates=args.get("send_updates", "none"),
+            ))
+
+        # ---- calendar_delete_event ----------------------------------------
+        elif name == "calendar_delete_event":
+            svc = _get_calendar(args["account"])
+            return _fmt(svc.delete_event(
+                event_id=args["event_id"],
+                calendar_id=args.get("calendar_id", "primary"),
+                send_updates=args.get("send_updates", "none"),
+            ))
+
+        # ---- calendar_quick_add_event -------------------------------------
+        elif name == "calendar_quick_add_event":
+            svc = _get_calendar(args["account"])
+            return _fmt(svc.quick_add_event(
+                text=args["text"],
+                calendar_id=args.get("calendar_id", "primary"),
+                send_updates=args.get("send_updates", "none"),
+            ))
+
         # ---- Drive --------------------------------------------------------
         elif name == "drive_list_files":
             svc = _get_drive(args["account"])
@@ -1016,6 +1208,18 @@ async def call_tool(name: str, arguments: dict | None) -> list[types.TextContent
                 replace=args["replace"],
                 match_case=bool(args.get("match_case", True)),
             ))
+
+        elif name == "docs_create_markdown":
+            svc = _get_docs(args["account"])
+            return _fmt(svc.create_document_from_markdown(args["title"], args["markdown"]))
+
+        elif name == "docs_append_markdown":
+            svc = _get_docs(args["account"])
+            return _fmt(svc.append_markdown(args["document_id"], args["markdown"]))
+
+        elif name == "docs_replace_with_markdown":
+            svc = _get_docs(args["account"])
+            return _fmt(svc.replace_with_markdown(args["document_id"], args["markdown"]))
 
         # ---- Sheets -------------------------------------------------------
         elif name == "sheets_create":

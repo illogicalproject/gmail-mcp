@@ -16,7 +16,9 @@ SERVICE_SCOPES = {
         "https://www.googleapis.com/auth/gmail.compose",
         "https://www.googleapis.com/auth/gmail.modify",
     ],
-    "calendar": ["https://www.googleapis.com/auth/calendar.readonly"],
+    # calendar.events grants read + create/edit/delete of events (a "sensitive"
+    # scope). Use this instead of calendar.readonly so the write tools work.
+    "calendar": ["https://www.googleapis.com/auth/calendar.events"],
     "drive": ["https://www.googleapis.com/auth/drive"],
     "drive.file": ["https://www.googleapis.com/auth/drive.file"],
     "docs": ["https://www.googleapis.com/auth/documents"],

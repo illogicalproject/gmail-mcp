@@ -89,7 +89,122 @@ class CalendarService:
         ).execute()
         return self._parse_event(event)
 
+    # ------------------------------------------------------------------ write
+
+    def create_event(
+        self,
+        summary: str,
+        start: str,
+        end: str,
+        all_day: bool = False,
+        description: Optional[str] = None,
+        location: Optional[str] = None,
+        attendees: Optional[List[str]] = None,
+        timezone: Optional[str] = None,
+        calendar_id: str = "primary",
+        send_updates: str = "none",
+        add_meet: bool = False,
+    ) -> Dict[str, Any]:
+        body: Dict[str, Any] = {"summary": summary}
+        if description:
+            body["description"] = description
+        if location:
+            body["location"] = location
+        body["start"] = self._time_field(start, all_day, timezone)
+        body["end"] = self._time_field(end, all_day, timezone)
+        if attendees:
+            body["attendees"] = [{"email": a} for a in attendees]
+
+        params: Dict[str, Any] = {
+            "calendarId": calendar_id,
+            "body": body,
+            "sendUpdates": send_updates,
+        }
+        if add_meet:
+            import uuid
+
+            body["conferenceData"] = {
+                "createRequest": {
+                    "requestId": uuid.uuid4().hex,
+                    "conferenceSolutionKey": {"type": "hangoutsMeet"},
+                }
+            }
+            params["conferenceDataVersion"] = 1
+
+        event = self.service.events().insert(**params).execute()
+        return self._parse_event(event)
+
+    def update_event(
+        self,
+        event_id: str,
+        summary: Optional[str] = None,
+        start: Optional[str] = None,
+        end: Optional[str] = None,
+        all_day: bool = False,
+        description: Optional[str] = None,
+        location: Optional[str] = None,
+        attendees: Optional[List[str]] = None,
+        timezone: Optional[str] = None,
+        calendar_id: str = "primary",
+        send_updates: str = "none",
+    ) -> Dict[str, Any]:
+        # Patch only the provided fields.
+        body: Dict[str, Any] = {}
+        if summary is not None:
+            body["summary"] = summary
+        if description is not None:
+            body["description"] = description
+        if location is not None:
+            body["location"] = location
+        if start is not None:
+            body["start"] = self._time_field(start, all_day, timezone)
+        if end is not None:
+            body["end"] = self._time_field(end, all_day, timezone)
+        if attendees is not None:
+            body["attendees"] = [{"email": a} for a in attendees]
+
+        event = self.service.events().patch(
+            calendarId=calendar_id,
+            eventId=event_id,
+            body=body,
+            sendUpdates=send_updates,
+        ).execute()
+        return self._parse_event(event)
+
+    def delete_event(
+        self,
+        event_id: str,
+        calendar_id: str = "primary",
+        send_updates: str = "none",
+    ) -> Dict[str, Any]:
+        self.service.events().delete(
+            calendarId=calendar_id,
+            eventId=event_id,
+            sendUpdates=send_updates,
+        ).execute()
+        return {"status": "deleted", "event_id": event_id, "calendar_id": calendar_id}
+
+    def quick_add_event(
+        self, text: str, calendar_id: str = "primary", send_updates: str = "none"
+    ) -> Dict[str, Any]:
+        event = self.service.events().quickAdd(
+            calendarId=calendar_id, text=text, sendUpdates=send_updates
+        ).execute()
+        return self._parse_event(event)
+
     # ------------------------------------------------------------------ internals
+
+    def _time_field(
+        self, value: str, all_day: bool, timezone: Optional[str]
+    ) -> Dict[str, Any]:
+        """Build a Calendar API start/end object. All-day events use 'date'
+        (YYYY-MM-DD); timed events use 'dateTime' (RFC3339)."""
+        if all_day:
+            return {"date": value[:10]}
+        field: Dict[str, Any] = {"dateTime": value}
+        if timezone:
+            field["timeZone"] = timezone
+        return field
 
     def _parse_event(self, event: Dict[str, Any]) -> Dict[str, Any]:
         start = event.get("start", {})

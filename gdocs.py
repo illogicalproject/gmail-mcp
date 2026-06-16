@@ -5,6 +5,8 @@ from typing import Any, Dict, List, Optional
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
+import markdown_docs
+
 
 class DocsService:
     def __init__(self, credentials: Credentials, account_name: str = ""):
@@ -26,6 +28,26 @@ class DocsService:
             "title": title,
             "url": f"https://docs.google.com/document/d/{doc_id}/edit",
         }
+
+    # ------------------------------------------------- create / edit (markdown)
+
+    def create_document_from_markdown(self, title: str, markdown: str) -> Dict[str, Any]:
+        """Create a new Doc and render markdown into it as real formatting
+        (headings, bold/italic, links, lists, blockquotes, tables)."""
+        doc = self.service.documents().create(body={"title": title}).execute()
+        doc_id = doc["documentId"]
+        result = markdown_docs.render_markdown(self.service, doc_id, markdown)
+        result.update({"title": title})
+        return result
+
+    def append_markdown(self, document_id: str, markdown: str) -> Dict[str, Any]:
+        """Append markdown to the end of an existing Doc as real formatting."""
+        return markdown_docs.render_markdown(self.service, document_id, markdown)
+
+    def replace_with_markdown(self, document_id: str, markdown: str) -> Dict[str, Any]:
+        """Clear the document body, then render markdown as real formatting."""
+        markdown_docs.clear_body(self.service, document_id)
+        return markdown_docs.render_markdown(self.service, document_id, markdown)
 
     # ------------------------------------------------------------------ read
 

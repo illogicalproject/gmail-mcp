@@ -3,6 +3,22 @@
 All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.0] - 2026-06-16
+
+### Added
+- **Calendar write** (4 new tools): `calendar_create_event`, `calendar_update_event`,
+  `calendar_delete_event`, `calendar_quick_add_event`. Supports timed & all-day events,
+  attendees, locations, optional Google Meet links, and attendee notifications.
+- **Markdown → Google Docs rendering** (`markdown_docs.py`, 3 new tools):
+  `docs_create_markdown`, `docs_append_markdown`, `docs_replace_with_markdown`. Converts
+  headings, **bold**/*italic*/`code`, links, bullet & numbered lists, blockquotes, and
+  tables into real Docs formatting (the existing `docs_*` plain-text tools are unchanged).
+
+### Changed
+- Calendar OAuth scope: `calendar.readonly` → `calendar.events` (sensitive tier; enables
+  event create/edit/delete). **Requires re-auth** — delete the token files and re-run
+  `setup_auth.py` to re-consent.
+
 ## [0.2.0] - 2026-06-15
 
 ### Added
