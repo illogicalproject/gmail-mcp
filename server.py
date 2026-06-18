@@ -463,6 +463,16 @@ async def list_tools() -> list[types.Tool]:
                     "calendar_id": {"type": "string", "description": "Calendar ID (default 'primary')", "default": "primary"},
                     "send_updates": {"type": "string", "description": "Notify attendees: 'all' | 'externalOnly' | 'none' (default 'none')", "default": "none"},
                     "add_meet": {"type": "boolean", "description": "Attach a Google Meet link", "default": False},
+                    "recurrence": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": (
+                            "Make this a recurring series. RRULE/RDATE/EXDATE lines, e.g. "
+                            "['RRULE:FREQ=WEEKLY;BYDAY=MO;COUNT=8'] for 8 weekly sessions, "
+                            "or ['RRULE:FREQ=WEEKLY;INTERVAL=2'] for every other week. "
+                            "Omit for a single event."
+                        ),
+                    },
                 },
                 "required": ["account", "summary", "start", "end"],
             },
@@ -492,6 +502,17 @@ async def list_tools() -> list[types.Tool]:
                     "timezone": {"type": "string", "description": "IANA tz for new start/end"},
                     "calendar_id": {"type": "string", "description": "Calendar ID (default 'primary')", "default": "primary"},
                     "send_updates": {"type": "string", "description": "'all' | 'externalOnly' | 'none' (default 'none')", "default": "none"},
+                    "recurrence": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": (
+                            "Replace the recurrence rule on this event. RRULE lines, e.g. "
+                            "['RRULE:FREQ=WEEKLY;BYDAY=MO;COUNT=8']. Pass [] to remove "
+                            "recurrence (convert a series to a single event). Editing one "
+                            "instance vs. the whole series depends on whether you pass the "
+                            "instance ID or the series (recurring event) ID."
+                        ),
+                    },
                 },
                 "required": ["account", "event_id"],
             },
@@ -1087,6 +1108,7 @@ async def call_tool(name: str, arguments: dict | None) -> list[types.TextContent
                 calendar_id=args.get("calendar_id", "primary"),
                 send_updates=args.get("send_updates", "none"),
                 add_meet=bool(args.get("add_meet", False)),
+                recurrence=args.get("recurrence"),
             ))
 
         # ---- calendar_update_event ----------------------------------------
@@ -1104,6 +1126,7 @@ async def call_tool(name: str, arguments: dict | None) -> list[types.TextContent
                 timezone=args.get("timezone"),
                 calendar_id=args.get("calendar_id", "primary"),
                 send_updates=args.get("send_updates", "none"),
+                recurrence=args.get("recurrence"),
             ))
 
         # ---- calendar_delete_event ----------------------------------------

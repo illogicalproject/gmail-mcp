@@ -142,9 +142,23 @@ Every tool takes an `account` parameter matching a key in `config.json`.
 - *"Search all my accounts for invoices from the last month."*
 - *"What meetings do I have this week on my work calendar?"*
 - *"Add a 30-minute 'Design review' to my work calendar Friday at 2pm and invite alex@company.com."*
+- *"Book a weekly 1:1 every Monday at 9am for the next 8 weeks."* (recurring series)
 - *"Find the 'Q3 planning' doc in my personal Drive and read it."*
 - *"Create a spreadsheet in my work account and add a header row plus three rows of data."*
 - *"Turn these meeting notes into a formatted Google Doc with headings and a table."*
+
+### Recurring events
+
+`calendar_create_event` (and `calendar_update_event`) accept a `recurrence` array of RRULE lines, passed straight through to Google. Common patterns:
+
+| You want | `recurrence` |
+| --- | --- |
+| 8 weekly sessions | `["RRULE:FREQ=WEEKLY;BYDAY=MO;COUNT=8"]` |
+| Every other week, no end | `["RRULE:FREQ=WEEKLY;INTERVAL=2"]` |
+| Weekdays until a date | `["RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;UNTIL=20261231T000000Z"]` |
+| Monthly on the 1st, 12 times | `["RRULE:FREQ=MONTHLY;BYMONTHDAY=1;COUNT=12"]` |
+
+Note: editing or deleting **one instance** vs. the **whole series** depends on which ID you pass — the instance ID changes a single occurrence, the series (recurring event) ID changes them all. Pass `recurrence: []` to `calendar_update_event` to strip recurrence and turn a series back into a single event.
 
 ## Adding a new account
 

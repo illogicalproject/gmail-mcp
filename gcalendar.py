@@ -104,6 +104,7 @@ class CalendarService:
         calendar_id: str = "primary",
         send_updates: str = "none",
         add_meet: bool = False,
+        recurrence: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         body: Dict[str, Any] = {"summary": summary}
         if description:
@@ -114,6 +115,9 @@ class CalendarService:
         body["end"] = self._time_field(end, all_day, timezone)
         if attendees:
             body["attendees"] = [{"email": a} for a in attendees]
+        if recurrence:
+            # RRULE/RDATE/EXDATE lines, e.g. ["RRULE:FREQ=WEEKLY;BYDAY=MO;COUNT=8"].
+            body["recurrence"] = recurrence
 
         params: Dict[str, Any] = {
             "calendarId": calendar_id,
@@ -147,6 +151,7 @@ class CalendarService:
         timezone: Optional[str] = None,
         calendar_id: str = "primary",
         send_updates: str = "none",
+        recurrence: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         # Patch only the provided fields.
         body: Dict[str, Any] = {}
@@ -162,6 +167,9 @@ class CalendarService:
             body["end"] = self._time_field(end, all_day, timezone)
         if attendees is not None:
             body["attendees"] = [{"email": a} for a in attendees]
+        if recurrence is not None:
+            # Pass [] to clear recurrence (convert a series to a single event).
+            body["recurrence"] = recurrence
 
         event = self.service.events().patch(
             calendarId=calendar_id,
