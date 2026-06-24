@@ -171,6 +171,14 @@ class ContactsService:
                 resourceName=resource_name, personFields=_PERSON_FIELDS
             ).execute()
             body["etag"] = existing.get("etag")
+            # `names` and `organizations` are single field groups: updating one
+            # sub-field replaces the whole group, so merge in the existing
+            # sub-fields we aren't changing (otherwise a title-only update wipes
+            # the company, a given-name-only update wipes the surname, etc.).
+            self._merge_compound_field(body, existing, "names",
+                                       ("givenName", "middleName", "familyName", "unstructuredName"))
+            self._merge_compound_field(body, existing, "organizations",
+                                       ("name", "title", "department"))
             person = self.service.people().updateContact(
                 resourceName=resource_name,
                 updatePersonFields=",".join(update_fields),
@@ -225,6 +233,34 @@ class ContactsService:
         return {"deleted": True, "resourceName": resource_name}
 
     # ------------------------------------------------------------------ internals
+
+    def _merge_compound_field(
+        self,
+        body: Dict[str, Any],
+        existing: Dict[str, Any],
+        key: str,
+        subkeys: "tuple[str, ...]",
+    ) -> None:
+        """For a single-instance field group (names, organizations), overlay the
+        caller's partial update on top of the contact's existing sub-fields so
+        unchanged sub-fields survive. No-op if the caller isn't touching `key`."""
+        if key not in body:
+            return
+        existing_entry = (existing.get(key) or [{}])[0]
+        merged = {k: v for k, v in existing_entry.items() if k in subkeys}
+        new_entry = body[key][0] if body[key] else {}
+        merged.update(new_entry)
+        if key == "names":
+            # Avoid conflicting name representations: structured parts and an
+            # unstructuredName shouldn't both linger. Whichever the caller just
+            # supplied wins; drop the stale other form.
+            structured = {"givenName", "middleName", "familyName"}
+            if structured & set(new_entry.keys()):
+                merged.pop("unstructuredName", None)
+            elif "unstructuredName" in new_entry:
+                for k in structured:
+                    merged.pop(k, None)
+        body[key] = [merged]
 
     def _build_person_body(
         self,
