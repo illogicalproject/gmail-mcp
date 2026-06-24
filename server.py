@@ -1128,6 +1128,64 @@ async def list_tools() -> list[types.Tool]:
                 "required": ["account"],
             },
         ),
+        types.Tool(
+            name="contacts_create",
+            description=(
+                "Create a new contact in the account's Google Contacts. Provide at "
+                "least a name or email. Returns the new contact's resourceName "
+                "(e.g. people/c123), which is needed to update or delete it later."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "name": {"type": "string", "description": "Full display name (used when given/family not supplied)"},
+                    "given_name": {"type": "string", "description": "First name"},
+                    "family_name": {"type": "string", "description": "Last name"},
+                    "email": {"type": "string", "description": "Email address"},
+                    "phone": {"type": "string", "description": "Phone number"},
+                    "organization": {"type": "string", "description": "Company / organization"},
+                },
+                "required": ["account"],
+            },
+        ),
+        types.Tool(
+            name="contacts_update",
+            description=(
+                "Update an existing contact. Identify it by resourceName "
+                "(e.g. people/c123, from contacts_search/contacts_list). Only the "
+                "fields you pass are changed; the contact's etag is handled automatically."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "resource_name": {"type": "string", "description": "Contact resourceName, e.g. people/c123"},
+                    "name": {"type": "string", "description": "Full display name (used when given/family not supplied)"},
+                    "given_name": {"type": "string", "description": "First name"},
+                    "family_name": {"type": "string", "description": "Last name"},
+                    "email": {"type": "string", "description": "Email address"},
+                    "phone": {"type": "string", "description": "Phone number"},
+                    "organization": {"type": "string", "description": "Company / organization"},
+                },
+                "required": ["account", "resource_name"],
+            },
+        ),
+        types.Tool(
+            name="contacts_delete",
+            description=(
+                "Permanently delete a contact by its resourceName (e.g. people/c123). "
+                "This cannot be undone."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "string", "description": "Account name"},
+                    "resource_name": {"type": "string", "description": "Contact resourceName, e.g. people/c123"},
+                },
+                "required": ["account", "resource_name"],
+            },
+        ),
     ]
 
     return [
@@ -1590,6 +1648,35 @@ async def call_tool(name: str, arguments: dict | None) -> list[types.TextContent
             svc = _get_contacts(args["account"])
             return _fmt(svc.list_contacts(
                 max_results=int(args.get("max_results", 50)),
+            ))
+
+        elif name == "contacts_create":
+            svc = _get_contacts(args["account"])
+            return _fmt(svc.create_contact(
+                name=args.get("name"),
+                given_name=args.get("given_name"),
+                family_name=args.get("family_name"),
+                email=args.get("email"),
+                phone=args.get("phone"),
+                organization=args.get("organization"),
+            ))
+
+        elif name == "contacts_update":
+            svc = _get_contacts(args["account"])
+            return _fmt(svc.update_contact(
+                resource_name=args["resource_name"],
+                name=args.get("name"),
+                given_name=args.get("given_name"),
+                family_name=args.get("family_name"),
+                email=args.get("email"),
+                phone=args.get("phone"),
+                organization=args.get("organization"),
+            ))
+
+        elif name == "contacts_delete":
+            svc = _get_contacts(args["account"])
+            return _fmt(svc.delete_contact(
+                resource_name=args["resource_name"],
             ))
 
         else:

@@ -27,9 +27,11 @@ SERVICE_SCOPES = {
     "drive.file": ["https://www.googleapis.com/auth/drive.file"],
     "docs": ["https://www.googleapis.com/auth/documents"],
     "sheets": ["https://www.googleapis.com/auth/spreadsheets"],
-    # tasks (read/write) is a sensitive scope; contacts.readonly is sensitive too.
+    # tasks (read/write) is a sensitive scope. contacts is full read/write
+    # (create/edit/delete) — a sensitive scope; contacts.readonly is read-only
+    # and will 403 on write calls.
     "tasks": ["https://www.googleapis.com/auth/tasks"],
-    "contacts": ["https://www.googleapis.com/auth/contacts.readonly"],
+    "contacts": ["https://www.googleapis.com/auth/contacts"],
 }
 
 DEFAULT_SERVICES = ["gmail", "calendar", "drive", "docs", "sheets", "tasks", "contacts"]

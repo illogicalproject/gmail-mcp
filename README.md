@@ -13,7 +13,7 @@ The official Claude Google connector authenticates **one** account at a time. Th
 - **Docs** (read/write) — create, read, append, find-and-replace, plus **Markdown rendering** — turn Markdown into real Docs formatting (headings, bold/italic, `code`, links, bullet & numbered lists, blockquotes, tables)
 - **Sheets** (read/write) — create, add tabs, read/write/append ranges, clear
 - **Tasks** (read/write) — list task lists and tasks, create, update, complete, delete
-- **Contacts** (read) — search and list contacts (look up an email address by name before sending)
+- **Contacts** (read/write) — search, list, create, update, and delete contacts (look up an email address by name before sending; manage your contact list)
 
 ## Requirements
 
@@ -120,7 +120,7 @@ Scopes follow the `services` list in `config.json` (see step 4) — enable only 
 | Docs | `documents` | Sensitive |
 | Sheets | `spreadsheets` | Sensitive |
 | Tasks | `tasks` | Sensitive |
-| Contacts | `contacts.readonly` | Sensitive |
+| Contacts | `contacts` | Sensitive |
 
 The **restricted** scopes (Gmail, full Drive) are what trigger the most prominent warning and would require the paid CASA assessment to verify. If you want a quieter, lower-risk setup: drop the Gmail scopes and swap `drive` for `drive.file` (per-file access, non-sensitive). A Calendar/Docs/Sheets/`drive.file` configuration uses only sensitive/non-sensitive scopes.
 
@@ -144,7 +144,7 @@ Every tool takes an `account` parameter matching a key in `config.json`.
 
 **Tasks:** `tasks_list_tasklists`, `tasks_list_tasks`, `tasks_create_task`, `tasks_update_task`, `tasks_complete_task`, `tasks_delete_task`
 
-**Contacts:** `contacts_search`, `contacts_list`
+**Contacts:** `contacts_search`, `contacts_list`, `contacts_create`, `contacts_update`, `contacts_delete`
 
 ## Usage examples
 
@@ -191,7 +191,8 @@ Most tools are read-only. These ones **write, send, or delete** — the model ca
 - **Drive:** `drive_create_*`, `drive_upload_file`, `drive_update_text_file`, `drive_rename_file`, `drive_move_file`, `drive_trash_file` (recoverable), and `drive_share_file` (grants another person access — `owner` transfers are blocked). `drive_download_file` writes a file to the local machine running the server.
 - **Docs:** `docs_append_*`, `docs_replace_text`, and `docs_replace_with_markdown` (which **clears the doc body** first).
 - **Sheets:** `sheets_write_range` overwrites cells, and `sheets_clear_range` with a bare sheet name (e.g. `"Sheet1"`) clears the **entire tab**.
-- **Tasks:** `tasks_create_task`, `tasks_update_task`, `tasks_complete_task`, and `tasks_delete_task` modify your Google Tasks. Contacts tools are read-only.
+- **Tasks:** `tasks_create_task`, `tasks_update_task`, `tasks_complete_task`, and `tasks_delete_task` modify your Google Tasks.
+- **Contacts:** `contacts_create`, `contacts_update`, and `contacts_delete` write to and permanently remove entries from your Google Contacts. `contacts_delete` cannot be undone. `contacts_search` / `contacts_list` are read-only.
 
 Reading a Google Sheet via `drive_read_file` exports **only the first tab** as CSV; use the `sheets_*` tools for multi-tab spreadsheets.
 
